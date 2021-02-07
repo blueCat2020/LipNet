@@ -110,6 +110,7 @@ class MyDataset(Dataset):
 
     @staticmethod
     def txt2arr(txt):
+        txt=txt.strip()
         arr = []
         for c in list(txt):
             arr.append(MyDataset.nums.index(c))
@@ -120,7 +121,7 @@ class MyDataset(Dataset):
         txt = []
         for n in arr:
             txt.append(MyDataset.nums[n])
-        return ''.join(txt).strip()
+        return ''.join(txt)
 
     @staticmethod
     def ctc_arr2txt(arr):
@@ -135,7 +136,6 @@ class MyDataset(Dataset):
             pre = n
         # result=''.join(txt).strip()
         return ''.join(txt).replace('-', '')
-        #return ''.join(txt).strip()
     @staticmethod
     def wer(predict, truth):
         # 词评价标准

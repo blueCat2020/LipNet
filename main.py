@@ -21,9 +21,9 @@ from torch.utils.data import DataLoader
 from torchvision import transforms, utils
 from tensorboardX import SummaryWriter
 
-from model import LipNet
+from model2 import LipNet
 from dataset import MyDataset
-from preprocess import Rescale, RandomCrop, ToTensor
+from preprocess import Rescale, RandomCrop, ToTensor,ColorNormalize
 
 if(__name__ == '__main__'):
     opt = __import__('options')
@@ -78,15 +78,14 @@ def show_lr(optimizer):
 
 
 def ctc_decode(y):
-    result = []
     y = y.argmax(-1)
     return [MyDataset.ctc_arr2txt(y[_]) for _ in range(y.size(0))]
 # 测试模型
 
 
 def test(model, net):
-    composed = transforms.Compose([Rescale(114), RandomCrop((112, 224)),ToTensor(),transforms.Normalize(
-        (0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))])
+    #transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))
+    composed = transforms.Compose([Rescale(114), RandomCrop((112, 224)),ToTensor(),ColorNormalize()])
     with torch.no_grad():
         # 引入测试集数据
         dataset = MyDataset(opt.video_path, opt.val_list
@@ -138,13 +137,12 @@ def test(model, net):
 
 
 def train(model, net):
-    composed = transforms.Compose([Rescale(114), RandomCrop((112, 224)),ToTensor(),
-                                   transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))])
+    composed = transforms.Compose([Rescale(114), RandomCrop((112, 224)),ToTensor(),ColorNormalize()])
     dataset = MyDataset(opt.video_path, opt.train_list 
                                    ,max_frame_len=opt.max_frame_len, transform=composed)
 
     loader = dataset2dataloader(dataset)
-    optimizer = optim.Adam(model.parameters(),
+    optimizer = optim.Adam(model.parameters(), 
                            lr=opt.base_lr,
                            weight_decay=0.,
                            amsgrad=True)
@@ -164,7 +162,8 @@ def train(model, net):
 
             optimizer.zero_grad()
             y = net(video)
-            loss = crit(y.transpose(0, 1).log_softmax(-1), txt,
+            y_trans_log_soft=y.transpose(0, 1).log_softmax(-1)
+            loss = crit(y_trans_log_soft, txt,
                         vid_len.view(-1), txt_len.view(-1))
             loss.backward()
             if(opt.is_optimize):

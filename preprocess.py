@@ -68,8 +68,6 @@ class RandomCrop(object):
                       left: left + new_w]
 
         return image
-
-
 class ToTensor(object):
     """将样本中的ndarrays转换为Tensors."""
 
@@ -79,4 +77,13 @@ class ToTensor(object):
         # torch包的图片是: C * H * W
         image = image.transpose((2, 0, 1))
         image = torch.from_numpy(image)
+        return image
+class ColorNormalize(object):
+    """将样本中的图像进行归一化"""
+
+    def __call__(self, image):
+        # 交换颜色轴因为
+        # numpy包的图片是: H * W * C
+        # torch包的图片是: C * H * W
+        image = image / 255.0
         return image
