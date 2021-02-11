@@ -3,7 +3,7 @@ import torch
 import numpy as np
 import pandas as pd  # 用于更容易地进行csv解析
 from skimage import io, transform  # 用于图像的IO和变换
-
+import cv2
 
 class Rescale(object):
     """将样本中的图像重新缩放到给定大小。.
@@ -37,11 +37,11 @@ class Rescale(object):
         return image
 
 
-class RandomCrop(object):
-    """随机裁剪样本中的图像.
+class CenterCrop(object):
+    """裁剪样本中的图像.
 
     Args:
-       output_size（tuple或int）：所需的输出大小。 如果是int，方形裁剪是。         
+       output_size（tuple或int）：所需的输出大小。 如果是int，方形裁剪是。
     """
 
     def __init__(self, output_size):
@@ -56,11 +56,11 @@ class RandomCrop(object):
         h, w = image.shape[:2]
         new_h, new_w = self.output_size
         if h > new_h:
-            top = np.random.randint(0, h - new_h)
+            top =int((h - new_h)/2)
         else:
             top = 0
         if w > new_w:
-            left = np.random.randint(0, w - new_w)
+            left = int((w - new_w)/2)
         else:
             left = 0
 
@@ -68,6 +68,41 @@ class RandomCrop(object):
                       left: left + new_w]
 
         return image
+
+
+class HorizontalFlip(object):
+    """将样本中的图像进行水平翻转"""
+
+    def __init__(self, flip_flag=False):
+        self.flip_flag = flip_flag
+
+    def __call__(self, img):
+        # 根据flip_flag决定是否执行水平翻转
+        if self.flip_flag:
+            return cv2.flip(img,1,dst=None)
+        return img
+
+
+class NoiseGauss(object):
+    """对样本中的图像添加高斯噪声"""
+
+    def __init__(self, sigma=0):
+        self.sigma = sigma
+
+    def __call__(self, image):
+        temp_img = np.float64(np.copy(image))
+        h, w = image.shape[:2]
+        noise = np.random.randn(h, w) * self.sigma
+        noisy_img = np.zeros(temp_img.shape, np.float64)
+        if len(temp_img.shape) == 2:
+            noisy_img = temp_img + noise
+        else:
+            noisy_img[:, :, 0] = temp_img[:, :, 0] + noise
+            noisy_img[:, :, 1] = temp_img[:, :, 1] + noise
+            noisy_img[:, :, 2] = temp_img[:, :, 2] + noise
+        return noisy_img
+
+
 class ToTensor(object):
     """将样本中的ndarrays转换为Tensors."""
 
@@ -78,12 +113,11 @@ class ToTensor(object):
         image = image.transpose((2, 0, 1))
         image = torch.from_numpy(image)
         return image
+
+
 class ColorNormalize(object):
     """将样本中的图像进行归一化"""
 
     def __call__(self, image):
-        # 交换颜色轴因为
-        # numpy包的图片是: H * W * C
-        # torch包的图片是: C * H * W
         image = image / 255.0
         return image

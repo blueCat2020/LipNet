@@ -7,12 +7,12 @@ we use Bi-gru as our encoder, gru as decoder, Luong attention(concat method) as 
 It refers to paper "Effective Approaches to Attention-based Neural Machine Translation"
 """
 
-import numpy as np
+
 import torch
 from torch import nn
 from torch.nn import functional as f
 import test_helper
-
+import numpy as np
 
 class Encoder(nn.Module):
     def __init__(self, input_size, hidden_size, embedding, num_layers=1, dropout=0.2):
@@ -129,14 +129,14 @@ class Decoder(nn.Module):
         :param state: s_t, (num_layers, batch_size, hidden_size)
         :param outputs: h, (src_seq_len, batch_size, hidden_size*2)
         :param src_len: tensor, (batch_size)
-        :param teacher_forcing:
+        :param teacher_forcing:one train skill,加速训练
         :return: results(tgt_seq_len, batch_size, vocab_size), state(num_layers, batch_size, hidden_size)
         """
         flag = np.random.random() < teacher_forcing
 
         # teacher_forcing mode, also for testing mode
         if flag:
-            embedded = self.embedding(tgt)
+            embedded = self.embedding(tgt)#三维
             ss, state = self.rnn(embedded, state)
             content = self.attn(outputs, src_len, ss).transpose(0, 1)  # (tgt_seq_len, batch_size, hidden_size*2)
             content = content.contiguous().view(-1, self.hidden_size*2)
@@ -218,7 +218,7 @@ class Seq2seq(nn.Module):
         :param max_len: max length of result
         :return: result, list
         """
-        src = index.unsqueeze(1)
+        src = index.unsqueeze(1)#增维操作
         src_len = torch.LongTensor([src.size(0)])
 
         # encode

@@ -8,7 +8,7 @@ import numpy as np
 
 
 class LipNet(torch.nn.Module):
-    def __init__(self, attention_size=1, dropout_rate=0.2):
+    def __init__(self, attention_size=1, dropout_rate=0.5):
         super(LipNet, self).__init__()
 
         self.dropout_rate = dropout_rate
@@ -53,7 +53,7 @@ class LipNet(torch.nn.Module):
         init.kaiming_normal_(self.conv3.weight, nonlinearity='relu')
         init.constant_(self.conv3.bias, 0.01)
 
-        init.kaiming_normal_(self.FC.weight, nonlinearity='relu')
+        init.kaiming_normal_(self.FC.weight, nonlinearity='sigmoid')
         init.constant_(self.FC.bias, 0.1)
 
         for m in (self.lstm1, self.lstm2):

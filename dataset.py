@@ -13,23 +13,28 @@ import json
 import random
 import editdistance
 import glob
+from torchvision import transforms, utils
 
+from preprocess import Rescale, CenterCrop, NoiseGauss, HorizontalFlip, ToTensor, ColorNormalize
 # 自定义数据集
 
 
 class MyDataset(Dataset):
     nums = ['-', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
 
-    def __init__(self, video_path, txt_path, max_frame_len=14, transform=None):
+    def __init__(self, video_path, txt_path, max_frame_len=14, trainflag=True):
         '''
         video_path:视频路径
         txt_path:文本路径
-        transform:数据集类型：一个样本上的可用的可选变换
+        trainflag:数据集类型：决定样本上的可用的可选变换
         '''
         self.video_path = video_path
         self.txt_path = txt_path
         self.max_frame_len = max_frame_len
-        self.transform = transform
+        self.trainflag = trainflag
+        self.common_transform = transforms.Compose(
+            [Rescale(114), CenterCrop((112, 224)), ToTensor(), ColorNormalize()])
+
         self.data = self._load_data(self.txt_path)
 
     def __getitem__(self, idx):
@@ -40,8 +45,8 @@ class MyDataset(Dataset):
         txt = MyDataset.txt2arr(txt)
         vid_len = vid.shape[0]
         txt_len = txt.shape[0]
-        #[C,T,H,W]
-        sample = {'video': torch.FloatTensor(vid.transpose(1, 0,2,3)),
+        # [C,T,H,W]
+        sample = {'video': torch.FloatTensor(vid.transpose(1, 0, 2, 3)),
                   'txt': torch.LongTensor(txt),
                   'txt_len': txt_len,
                   'vid_len': vid_len}
@@ -50,7 +55,7 @@ class MyDataset(Dataset):
     def __len__(self):
         return len(self.data)
 
-    def _load_data(self, txt_path, max_len=18, min_len=5):
+    def _load_data(self, txt_path, max_len=20, min_len=4):
         data = []
         with open(txt_path, 'r') as f:
             for line in f.readlines():
@@ -72,10 +77,18 @@ class MyDataset(Dataset):
         array = [cv2.imread(os.path.join(vid_path, file))
                  for file in files]  # 加载图片
         array = list(filter(lambda im: not im is None, array))  # 过滤空图片
-        # 应用变换
-        if self.transform:
+
+        # 训练集变换
+        if self.trainflag:
+            use_flag = np.random.rand() < 0.5
+            train_transform = transforms.Compose(
+                [HorizontalFlip(flip_flag=use_flag), NoiseGauss(sigma=10*use_flag)])
+
             for i in range(len(array)):
-                array[i] = self.transform(array[i])
+                array[i] = train_transform(array[i])
+        # 通用变换
+        for i in range(len(array)):
+            array[i] = self.common_transform(array[i])
 
         array = self._deal_video(array, keep_len=self.max_frame_len)
         array = np.stack(array, axis=0).astype(np.float32)
@@ -110,7 +123,7 @@ class MyDataset(Dataset):
 
     @staticmethod
     def txt2arr(txt):
-        txt=txt.strip()
+        txt = txt.strip()
         arr = []
         for c in list(txt):
             arr.append(MyDataset.nums.index(c))
@@ -136,6 +149,7 @@ class MyDataset(Dataset):
             pre = n
         # result=''.join(txt).strip()
         return ''.join(txt).replace('-', '')
+
     @staticmethod
     def wer(predict, truth):
         # 词评价标准

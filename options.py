@@ -8,10 +8,10 @@ batch_size = 64
 base_lr = 2e-5
 num_workers = 4
 max_epoch = 1024
-max_frame_len=16
+max_frame_len = 16
 display = 8
 test_step = 256
 save_prefix = f'weights/LipNet'
 is_optimize = True
 
-weights = 'weights/LipNet_loss_2.6612374782562256_cer_0.9379398592450415.pt'
+weights = 'weights/LipNet_loss_2.0532643795013428_cer_0.601407549584133.pt'

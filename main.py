@@ -23,7 +23,6 @@ from tensorboardX import SummaryWriter
 
 from model2 import LipNet
 from dataset import MyDataset
-from preprocess import Rescale, RandomCrop, ToTensor,ColorNormalize
 
 if(__name__ == '__main__'):
     opt = __import__('options')
@@ -85,11 +84,11 @@ def ctc_decode(y):
 
 def test(model, net):
     #transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))
-    composed = transforms.Compose([Rescale(114), RandomCrop((112, 224)),ToTensor(),ColorNormalize()])
+    # composed = transforms.Compose([Rescale(114), transforms.CenterCrop((112, 224),ToTensor(),ColorNormalize()])
     with torch.no_grad():
         # 引入测试集数据
-        dataset = MyDataset(opt.video_path, opt.val_list
-                                    ,max_frame_len=opt.max_frame_len, transform=composed)
+        dataset = MyDataset(opt.video_path, opt.val_list,
+                            max_frame_len=opt.max_frame_len, trainflag=False)
         # 输出测试集大小
         print('num_test_data:{}'.format(len(dataset.data)))
         # ？
@@ -137,12 +136,12 @@ def test(model, net):
 
 
 def train(model, net):
-    composed = transforms.Compose([Rescale(114), RandomCrop((112, 224)),ToTensor(),ColorNormalize()])
-    dataset = MyDataset(opt.video_path, opt.train_list 
-                                   ,max_frame_len=opt.max_frame_len, transform=composed)
+    #composed = transforms.Compose([Rescale(115), RandomCrop((112, 224)),ToTensor(),ColorNormalize()])
+    dataset = MyDataset(opt.video_path, opt.train_list,
+                        max_frame_len=opt.max_frame_len)
 
     loader = dataset2dataloader(dataset)
-    optimizer = optim.Adam(model.parameters(), 
+    optimizer = optim.Adam(model.parameters(),
                            lr=opt.base_lr,
                            weight_decay=0.,
                            amsgrad=True)
@@ -162,7 +161,7 @@ def train(model, net):
 
             optimizer.zero_grad()
             y = net(video)
-            y_trans_log_soft=y.transpose(0, 1).log_softmax(-1)
+            y_trans_log_soft = y.transpose(0, 1).log_softmax(-1)
             loss = crit(y_trans_log_soft, txt,
                         vid_len.view(-1), txt_len.view(-1))
             loss.backward()
@@ -201,7 +200,7 @@ def train(model, net):
                       .format(tot_iter, show_lr(optimizer), loss, cer))
                 writer.add_scalar('val loss', loss, tot_iter)
                 writer.add_scalar('cer', cer, tot_iter)
-                writer.add_graph(model,video)
+                writer.add_graph(model, video)
                 savename = '{}_loss_{}_cer_{}.pt'.format(
                     opt.save_prefix, loss, cer)
                 (path, name) = os.path.split(savename)
@@ -218,17 +217,19 @@ if(__name__ == '__main__'):
     model = LipNet().to(device)
     net = nn.DataParallel(model).to(device)
 
-    '''
     if(hasattr(opt, 'weights')):
         pretrained_dict = torch.load(opt.weights)
         model_dict = model.state_dict()
-        pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict.keys() and v.size() == model_dict[k].size()}
-        missed_params = [k for k, v in model_dict.items() if not k in pretrained_dict.keys()]
-        print('loaded params/tot params:{}/{}'.format(len(pretrained_dict),len(model_dict)))
+        pretrained_dict = {k: v for k, v in pretrained_dict.items(
+        ) if k in model_dict.keys() and v.size() == model_dict[k].size()}
+        missed_params = [k for k, v in model_dict.items(
+        ) if not k in pretrained_dict.keys()]
+        print(
+            'loaded params/tot params:{}/{}'.format(len(pretrained_dict), len(model_dict)))
         print('miss matched params:{}'.format(missed_params))
         model_dict.update(pretrained_dict)
         model.load_state_dict(model_dict)
-    '''
+
     torch.manual_seed(opt.random_seed)
     torch.cuda.manual_seed(opt.random_seed)
     torch.cuda.manual_seed_all(opt.random_seed)
